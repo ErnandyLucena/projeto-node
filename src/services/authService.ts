@@ -1,32 +1,38 @@
-// src/services/authService.ts
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { v4 as uuidv4 } from 'uuid';
-import pool from '../utils/db';
-import { User } from '../models/user';
 
-const JWT_SECRET = 'your_jwt_secret';
+const JWT_SECRET = '7gqGgYQ1LzM^&u^%AMO@x!cpTmXivJk8Bfz'; // Exemplo de chave JWT segura
 
-export const register = async (username: string, password: string): Promise<User> => {
-  const hashedPassword = await bcrypt.hash(password, 10);
-  const id = uuidv4();
+// Simulação de um banco de dados de usuários (pode ser substituído por um banco de dados real
+const usersDB: { [key: string]: { id: string; username: string; passwordHash: string } } = {};
 
-  const result = await pool.query(
-    'INSERT INTO users (id, username, password) VALUES ($1, $2, $3) RETURNING *',
-    [id, username, hashedPassword]
-  );
+export const register = async (username: string, password: string): Promise<{ id: string; username: string }> => {
+  if (usersDB[username]) {
+    throw new Error('Username already exists');
+  }
 
-  return result.rows[0];
+  const salt = await bcrypt.genSalt(10);
+  const passwordHash = await bcrypt.hash(password, salt);
+
+  const id = Math.random().toString(36).substr(2, 9); 
+  usersDB[username] = { id, username, passwordHash };
+
+  return { id, username };
 };
 
 export const login = async (username: string, password: string): Promise<string | null> => {
-  const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
-  const user = result.rows[0];
+  const user = usersDB[username];
 
-  if (user && await bcrypt.compare(password, user.password)) {
-    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '1h' });
-    return token;
+  if (!user) {
+    return null; 
   }
 
-  return null;
+  const isMatch = await bcrypt.compare(password, user.passwordHash);
+
+  if (!isMatch) {
+    return null; 
+  }
+
+  const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '1h' });
+  return token;
 };

@@ -1,23 +1,34 @@
-// src/middlewares/authMiddleware.ts
+
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
+import * as jwt from 'jsonwebtoken';
 
-const JWT_SECRET = 'your_jwt_secret';
+interface CustomRequest extends Request {
+  user?: {
+    id: string;
+  };
+}
 
-export const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
-  const authHeader = req.headers.authorization;
+const JWT_SECRET = '7gqGgYQ1LzM^&u^%AMO@x!cpTmXivJk8Bfz'; 
 
-  if (!authHeader) {
-    return res.status(401).send('Token not provided');
+export const authMiddleware = (req: CustomRequest, res: Response, next: NextFunction) => {
+  const token = req.headers.authorization?.split(' ')[1]; 
+
+  if (!token) {
+    console.log('Token not provided');
+    return res.status(401).json({ error: 'Unauthorized - Token not provided' });
   }
 
-  const token = authHeader.split(' ')[1];
-
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
-    req.userId = decoded.userId;
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string }; 
+    console.log('Decoded token:', decoded); 
+
+    req.user = {
+      id: decoded.userId,
+    };
+
     next();
-  } catch (error) {
-    return res.status(401).send('Invalid token');
+  } catch (err) {
+    console.error('Error verifying JWT:', err);
+    return res.status(401).json({ error: 'Unauthorized - Invalid token' });
   }
 };
